@@ -45,94 +45,96 @@
     </div>
 
     <script>
-        var video = document.querySelector("#videoPlayer");
-        var baseUrl = "{{ mpd_url }}".replace('/output.mpd', '');
-        var currentQualitySpan = document.getElementById("currentQuality");
-        var currentQualityLevel = 'auto';
+        const video = document.querySelector("#videoPlayer");
+        const currentQualitySpan = document.getElementById("currentQuality");
+        const mpd_url = "{{ mpd_url }}";
         
-        // URLs dos diferentes manifestos
-        var manifestUrls = {
-            'auto': "{{ mpd_url }}",
-            '1080p': baseUrl + '/video_1080p.mp4',
-            '720p': baseUrl + '/video_720p.mp4',
-            '480p': baseUrl + '/video_480p.mp4',
-            '240p': baseUrl + '/video_240p.mp4'
+        let dashPlayer = null;
+        let currentQuality = 'auto';
+        let isPlayerReady = false;
+
+        const qualityMap = {
+            '240p': 0,
+            '480p': 1,
+            '720p': 2,
+            '1080p': 3
         };
 
         function updateButtonStates() {
-            // Remove active class from all buttons
-            document.querySelectorAll('.quality-button').forEach(btn => {
-                btn.classList.remove('active');
-            });
+            document.querySelectorAll('.quality-button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-' + currentQuality)?.classList.add('active');
+        }
+
+        function updateDisplay() {
+            currentQualitySpan.textContent = `Qualidade atual: ${currentQuality === 'auto' ? 'Automática' : currentQuality}`;
+        }
+
+        function initPlayer() {
+            if (typeof dashjs === 'undefined' || dashPlayer) return;
             
-            // Add active class to current quality button
-            var activeBtn = document.getElementById('btn-' + currentQualityLevel);
-            if (activeBtn) {
-                activeBtn.classList.add('active');
+            console.log("Inicializando DASH player...");
+            dashPlayer = dashjs.MediaPlayer().create();
+            dashPlayer.initialize(video, mpd_url, false);
+            
+            dashPlayer.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, () => {
+                console.log("DASH stream pronto");
+                isPlayerReady = true;
+                applyQuality(currentQuality);
+            });
+        }
+
+        function applyQuality(quality) {
+            if (!dashPlayer || !isPlayerReady) return;
+
+            try {
+                if (quality === 'auto') {
+                    // Habilitar modo automático
+                    dashPlayer.updateSettings({
+                        streaming: { abr: { autoSwitchBitrate: { video: true } } }
+                    });
+                } else {
+                    // Desabilitar modo automático e definir qualidade
+                    dashPlayer.updateSettings({
+                        streaming: { abr: { autoSwitchBitrate: { video: false } } }
+                    });
+                    
+                    setTimeout(() => {
+                        const representations = dashPlayer.getRepresentationsByType('video');
+                        const targetIndex = qualityMap[quality];
+                        
+                        if (representations && targetIndex < representations.length) {
+                            const representationId = representations[targetIndex].id;
+                            dashPlayer.setRepresentationForTypeById('video', representationId);
+                            
+                            // Forçar aplicação imediata
+                            const currentTime = video.currentTime;
+                            const wasPlaying = !video.paused;
+                            
+                            video.currentTime = currentTime + 0.1;
+                            setTimeout(() => {
+                                video.currentTime = currentTime;
+                                if (wasPlaying && video.paused) video.play();
+                            }, 100);
+                        }
+                    }, 300);
+                }
+            } catch (e) {
+                console.error("Erro ao aplicar qualidade:", e);
             }
         }
 
         function changeQuality(quality) {
-            console.log("Mudando para qualidade:", quality);
-            
-            // Salvar estado atual
-            var currentTime = video.currentTime;
-            var wasPlaying = !video.paused;
-            var currentVolume = video.volume;
-            var wasMuted = video.muted;
-            
-            // Atualizar qualidade atual
-            currentQualityLevel = quality;
+            currentQuality = quality;
             updateButtonStates();
-            
-            // Determinar qual fonte usar
-            var sourceUrl;
-            if (quality === 'auto') {
-                // Para automática, usar DASH
-                sourceUrl = manifestUrls.auto;
-                video.src = '';
-                
-                // Usar dash.js para qualidade automática
-                if (typeof dashjs !== 'undefined') {
-                    var player = dashjs.MediaPlayer().create();
-                    player.initialize(video, sourceUrl, false);
-                    
-                    // Restaurar estado após carregar
-                    video.addEventListener('loadeddata', function restoreState() {
-                        video.removeEventListener('loadeddata', restoreState);
-                        video.currentTime = currentTime;
-                        video.volume = currentVolume;
-                        video.muted = wasMuted;
-                        if (wasPlaying) video.play();
-                    });
-                } else {
-                    alert("DASH player não disponível para qualidade automática");
-                }
-            } else {
-                // Para qualidades específicas, usar vídeo direto
-                sourceUrl = manifestUrls[quality];
-                video.src = sourceUrl;
-                
-                // Restaurar estado após carregar
-                video.addEventListener('loadeddata', function restoreState() {
-                    video.removeEventListener('loadeddata', restoreState);
-                    video.currentTime = currentTime;
-                    video.volume = currentVolume;
-                    video.muted = wasMuted;
-                    if (wasPlaying) video.play();
-                });
-                
-                video.load();
-            }
-            
-            // Atualizar display
-            currentQualitySpan.textContent = "Qualidade atual: " + 
-                (quality === 'auto' ? 'Automática (DASH)' : quality);
+            updateDisplay();
+            applyQuality(quality);
         }
 
-        // Inicializar com qualidade automática
-        window.addEventListener('load', function() {
-            changeQuality('auto');
+        // Inicializar
+        window.addEventListener('load', () => {
+            initPlayer();
+            updateButtonStates();
+            updateDisplay();
         });
     </script>
     

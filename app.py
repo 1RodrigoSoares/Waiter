@@ -31,19 +31,14 @@ def run_command(cmd_list):
     return proc.stdout, proc.stderr
 
 def transcode_and_multiplex_dash(input_path: Path, dest_dir: Path):
-    """
-    Pipeline simplificado:
-      - Gera quatro resoluções H.264: 240p, 480p, 720p, 1080p (COM áudio estéreo)
-      - Multiplexa tudo em um único manifesto DASH (output.mpd) com segmentos .m4s
-      - Gera uma thumbnail opcional
-    """
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    # Arquivos de vídeo com áudio
-    v240  = dest_dir / "video_240p.mp4"
-    v480  = dest_dir / "video_480p.mp4"
-    v720  = dest_dir / "video_720p.mp4"
-    v1080 = dest_dir / "video_1080p.mp4"
+    v240_dash  = dest_dir / "video_240p_dash.mp4"
+    v480_dash  = dest_dir / "video_480p_dash.mp4"
+    v720_dash  = dest_dir / "video_720p_dash.mp4"
+    v1080_dash = dest_dir / "video_1080p_dash.mp4"
+    
+    audio = dest_dir / "audio.m4a"
     mpd   = dest_dir / "output.mpd"
     thumb = dest_dir / "thumbnail.jpg"
 
@@ -60,58 +55,67 @@ def transcode_and_multiplex_dash(input_path: Path, dest_dir: Path):
     except Exception as e:
         print("Falha ao gerar thumbnail:", e)
 
-    # Vídeo 240p COM áudio
     run_command([
         "ffmpeg", "-y", "-i", str(input_path),
         "-vf", "scale=426:240,setsar=1,setdar=16/9",
         "-c:v", "libx264", "-crf", "28", "-preset", "fast",
-        "-c:a", "aac", "-ac", "2", "-b:a", "96k",
-        str(v240)
+        "-an",  # sem áudio
+        str(v240_dash)
     ])
 
-    # Vídeo 480p COM áudio
     run_command([
         "ffmpeg", "-y", "-i", str(input_path),
         "-vf", "scale=854:480,setsar=1,setdar=16/9",
         "-c:v", "libx264", "-crf", "25", "-preset", "fast",
-        "-c:a", "aac", "-ac", "2", "-b:a", "128k",
-        str(v480)
+        "-an",  # sem áudio
+        str(v480_dash)
     ])
 
-    # Vídeo 720p COM áudio
     run_command([
         "ffmpeg", "-y", "-i", str(input_path),
         "-vf", "scale=1280:720,setsar=1,setdar=16/9",
         "-c:v", "libx264", "-crf", "23", "-preset", "fast",
-        "-c:a", "aac", "-ac", "2", "-b:a", "128k",
-        str(v720)
+        "-an",  # sem áudio
+        str(v720_dash)
     ])
 
-    # Vídeo 1080p COM áudio
     run_command([
         "ffmpeg", "-y", "-i", str(input_path),
         "-vf", "scale=1920:1080,setsar=1,setdar=16/9",
         "-c:v", "libx264", "-crf", "21", "-preset", "fast",
-        "-c:a", "aac", "-ac", "2", "-b:a", "192k",
-        str(v1080)
+        "-an",  # sem áudio
+        str(v1080_dash)
     ])
 
-    # Multiplexação DASH usando os mesmos arquivos
+    # Áudio estéreo separado para DASH
+    run_command([
+        "ffmpeg", "-y", "-i", str(input_path),
+        "-vn", "-c:a", "aac", "-b:a", "128k",
+        str(audio)
+    ])
+
+    # Multiplexação DASH: 4 streams de vídeo + 1 stream de áudio
     run_command([
         "ffmpeg",
-        "-i", str(v240),
-        "-i", str(v480),
-        "-i", str(v720),
-        "-i", str(v1080),
-        "-map", "0", "-map", "1", "-map", "2", "-map", "3",
+        "-i", str(v240_dash),
+        "-i", str(v480_dash),
+        "-i", str(v720_dash),
+        "-i", str(v1080_dash),
+        "-i", str(audio),
+        "-map", "0:v", "-map", "1:v", "-map", "2:v", "-map", "3:v", "-map", "4:a",
         "-c", "copy",
         "-f", "dash",
-        "-seg_duration", "4",
+        "-seg_duration", "3",
         "-use_timeline", "1",
         "-use_template", "1",
-        "-adaptation_sets", "id=0,streams=v id=1,streams=a",
+        "-adaptation_sets", "id=0,streams=0,1,2,3 id=1,streams=4",
         str(mpd)
     ])
+
+    v240_dash.unlink(missing_ok=True)
+    v480_dash.unlink(missing_ok=True)
+    v720_dash.unlink(missing_ok=True)
+    v1080_dash.unlink(missing_ok=True)
 
     # Metadados simples
     (dest_dir / "meta.txt").write_text("original_filename={}\nmpd={}\n".format(input_path.name, mpd.name), encoding="utf-8")
