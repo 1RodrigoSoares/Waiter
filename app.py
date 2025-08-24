@@ -207,25 +207,6 @@ def watch(video_id):
     mpd_url = url_for("serve_video_file", video_id=video_id, filename=mpd_name)
     return render_template("player.html", mpd_url=mpd_url, title=title, video_id=video_id)
 
-@app.route("/watch_simple/<video_id>")
-def watch_simple(video_id):
-    video_dir = VIDEOS_FOLDER / video_id
-    if not video_dir.exists():
-        flash("Vídeo não encontrado", "danger")
-        return redirect(url_for("list_videos"))
-    mpd_name = "output.mpd"
-    meta_file = video_dir / "meta.txt"
-    title = video_id
-    if meta_file.exists():
-        content = meta_file.read_text(encoding="utf-8")
-        for line in content.splitlines():
-            if line.startswith("mpd="):
-                mpd_name = line.split("=",1)[1].strip()
-            if line.startswith("original_filename="):
-                title = line.split("=",1)[1].strip()
-    mpd_url = url_for("serve_video_file", video_id=video_id, filename=mpd_name)
-    return render_template("simple_player.html", mpd_url=mpd_url, title=title, video_id=video_id)
-
 @app.route("/videos/<video_id>/<path:filename>")
 def serve_video_file(video_id, filename):
     safe_dir = VIDEOS_FOLDER / secure_filename(video_id)

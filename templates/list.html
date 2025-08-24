@@ -15,8 +15,7 @@
           <strong>{{ v.original_name }}</strong>
         </div>
         <div class="actions">
-          <a class="btn" href="{{ url_for('watch', video_id=v.id) }}">Player DASH</a>
-          <a class="btn" href="{{ url_for('watch_simple', video_id=v.id) }}" style="background: #28a745;">Player Simples</a>
+          <a class="btn" href="{{ url_for('watch', video_id=v.id) }}">Assistir</a>
           <a class="btn" href="{{ url_for('serve_video_file', video_id=v.id, filename=v.mpd) }}" target="_blank">Manifest</a>
         </div>
       </div>
