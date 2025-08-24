@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Player Simples</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background: #f7f7f7; }
+        video { width: 80%; margin-top: 20px; }
+        #qualitySelector { margin-top: 15px; padding: 8px; }
+        .quality-controls { margin: 20px 0; }
+        .quality-button {
+            margin: 5px;
+            padding: 10px 15px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .quality-button:hover { background: #0056b3; }
+        .quality-button.active { background: #28a745; }
+        #currentQuality { 
+            margin-top: 10px; 
+            padding: 5px 10px; 
+            background: #e9ecef; 
+            border-radius: 3px; 
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Player Simples</h1>
+    <video id="videoPlayer" controls></video>
+
+    <div class="quality-controls">
+        <div>
+            <button class="quality-button" onclick="changeQuality('auto')" id="btn-auto">Automática</button>
+            <button class="quality-button" onclick="changeQuality('1080p')" id="btn-1080p">1080p</button>
+            <button class="quality-button" onclick="changeQuality('720p')" id="btn-720p">720p</button>
+            <button class="quality-button" onclick="changeQuality('480p')" id="btn-480p">480p</button>
+        </div>
+        <div id="currentQuality">Qualidade atual: Carregando...</div>
+    </div>
+
+    <script>
+        var video = document.querySelector("#videoPlayer");
+        var baseUrl = "{{ mpd_url }}".replace('/output.mpd', '');
+        var currentQualitySpan = document.getElementById("currentQuality");
+        var currentQualityLevel = 'auto';
+        
+        // URLs dos diferentes manifestos
+        var manifestUrls = {
+            'auto': "{{ mpd_url }}",
+            '1080p': baseUrl + '/video_1080p.mp4',
+            '720p': baseUrl + '/video_720p.mp4',
+            '480p': baseUrl + '/video_480p.mp4'
+        };
+
+        function updateButtonStates() {
+            // Remove active class from all buttons
+            document.querySelectorAll('.quality-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Add active class to current quality button
+            var activeBtn = document.getElementById('btn-' + currentQualityLevel);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+            }
+        }
+
+        function changeQuality(quality) {
+            console.log("Mudando para qualidade:", quality);
+            
+            // Salvar estado atual
+            var currentTime = video.currentTime;
+            var wasPlaying = !video.paused;
+            var currentVolume = video.volume;
+            var wasMuted = video.muted;
+            
+            // Atualizar qualidade atual
+            currentQualityLevel = quality;
+            updateButtonStates();
+            
+            // Determinar qual fonte usar
+            var sourceUrl;
+            if (quality === 'auto') {
+                // Para automática, usar DASH
+                sourceUrl = manifestUrls.auto;
+                video.src = '';
+                
+                // Usar dash.js para qualidade automática
+                if (typeof dashjs !== 'undefined') {
+                    var player = dashjs.MediaPlayer().create();
+                    player.initialize(video, sourceUrl, false);
+                    
+                    // Restaurar estado após carregar
+                    video.addEventListener('loadeddata', function restoreState() {
+                        video.removeEventListener('loadeddata', restoreState);
+                        video.currentTime = currentTime;
+                        video.volume = currentVolume;
+                        video.muted = wasMuted;
+                        if (wasPlaying) video.play();
+                    });
+                } else {
+                    alert("DASH player não disponível para qualidade automática");
+                }
+            } else {
+                // Para qualidades específicas, usar vídeo direto
+                sourceUrl = manifestUrls[quality];
+                video.src = sourceUrl;
+                
+                // Restaurar estado após carregar
+                video.addEventListener('loadeddata', function restoreState() {
+                    video.removeEventListener('loadeddata', restoreState);
+                    video.currentTime = currentTime;
+                    video.volume = currentVolume;
+                    video.muted = wasMuted;
+                    if (wasPlaying) video.play();
+                });
+                
+                video.load();
+            }
+            
+            // Atualizar display
+            currentQualitySpan.textContent = "Qualidade atual: " + 
+                (quality === 'auto' ? 'Automática (DASH)' : quality);
+        }
+
+        // Inicializar com qualidade automática
+        window.addEventListener('load', function() {
+            changeQuality('auto');
+        });
+    </script>
+    
+    <!-- Carregar dash.js apenas se necessário -->
+    <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+</body>
+</html>

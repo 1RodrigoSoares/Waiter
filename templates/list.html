@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Vídeos disponíveis</h2>
+
+{% if videos %}
+  <div class="grid">
+    {% for v in videos %}
+      <div class="card">
+        {% if v.thumbnail %}
+          <img src="{{ v.thumbnail }}" alt="thumb" class="thumb">
+        {% else %}
+          <div class="thumb placeholder">Sem miniatura</div>
+        {% endif %}
+        <div class="meta">
+          <strong>{{ v.original_name }}</strong>
+        </div>
+        <div class="actions">
+          <a class="btn" href="{{ url_for('watch', video_id=v.id) }}">Player DASH</a>
+          <a class="btn" href="{{ url_for('watch_simple', video_id=v.id) }}" style="background: #28a745;">Player Simples</a>
+          <a class="btn" href="{{ url_for('serve_video_file', video_id=v.id, filename=v.mpd) }}" target="_blank">Manifest</a>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p>Nenhum vídeo disponível. <a href="{{ url_for('upload') }}">Envie um agora</a>.</p>
+{% endif %}
+
+{% endblock %}

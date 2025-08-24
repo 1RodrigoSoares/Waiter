@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Player DASH</title>
+    <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background: #f7f7f7; }
+        video { width: 80%; margin-top: 20px; }
+        #qualitySelector { margin-top: 15px; padding: 8px; }
+    </style>
+</head>
+<body>
+    <h1>Player DASH</h1>
+    <video id="videoPlayer" controls autoplay></video>
+
+    <div>
+        <label for="qualitySelector">Qualidade:</label>
+        <select id="qualitySelector">
+            <option value="-1">Automática</option>
+        </select>
+        <button id="applyQuality" onclick="applySelectedQuality()" style="margin-left: 10px;">Aplicar</button>
+        <span id="currentQuality" style="margin-left: 10px; font-weight: bold;"></span>
+    </div>
+    
+    <div style="margin-top: 10px;">
+        <button onclick="qualitiesLoaded = false; loadQualities()" style="margin-right: 10px;">Recarregar Qualidades</button>
+        <button onclick="debugPlayer()">Debug Completo</button>
+    </div>
+
+    <script>
+        var url = "{{ mpd_url }}";
+        var video = document.querySelector("#videoPlayer");
+        var player = dashjs.MediaPlayer().create();
+        var selector = document.getElementById("qualitySelector");
+        var currentQualitySpan = document.getElementById("currentQuality");
+        var qualitiesLoaded = false;
+        var availableQualities = [];
+
+        function updateCurrentQualityDisplay() {
+            try {
+                var currentText = "Atual: ";
+                
+                // Tentar obter configurações atuais
+                if (typeof player.getSettings === 'function') {
+                    var settings = player.getSettings();
+                    console.log("Settings atuais:", settings);
+                    
+                    if (settings && settings.streaming && settings.streaming.abr) {
+                        var isAuto = settings.streaming.abr.autoSwitchBitrate && settings.streaming.abr.autoSwitchBitrate.video;
+                        
+                        if (isAuto) {
+                            currentText += "Automática";
+                        } else {
+                            // Tentar obter qualidade atual
+                            if (typeof player.getQualityFor === 'function') {
+                                var currentQuality = player.getQualityFor("video");
+                                if (availableQualities[currentQuality]) {
+                                    currentText += availableQualities[currentQuality].height + "p";
+                                } else {
+                                    currentText += "Manual (índice " + currentQuality + ")";
+                                }
+                            } else {
+                                currentText += "Manual";
+                            }
+                        }
+                    } else {
+                        currentText += "Desconhecida";
+                    }
+                } else {
+                    currentText += "Não disponível";
+                }
+                
+                currentQualitySpan.textContent = currentText;
+                console.log("Display atualizado:", currentText);
+                
+            } catch (e) {
+                currentQualitySpan.textContent = "Atual: Erro";
+                console.log("Erro ao obter qualidade atual:", e.message);
+            }
+        }
+
+        function applySelectedQuality() {
+            var qualityIndex = parseInt(selector.value);
+            console.log("Aplicando qualidade:", qualityIndex);
+            
+            try {
+                // Salvar estado atual do vídeo
+                var currentTime = video.currentTime;
+                var wasPlaying = !video.paused;
+                var currentVolume = video.volume;
+                var wasMuted = video.muted;
+                
+                console.log("Estado salvo - Tempo:", currentTime, "Reproduzindo:", wasPlaying);
+                
+                // Determinar URL do manifest baseado na qualidade
+                var manifestUrl;
+                var baseUrl = url.replace('/output.mpd', '');
+                
+                if (qualityIndex === -1) {
+                    // Qualidade automática - usar manifest original
+                    manifestUrl = url;
+                    console.log("Usando manifest automático:", manifestUrl);
+                } else {
+                    // Qualidade específica - tentar manifest específico ou criar URL inline
+                    var selectedQuality = availableQualities[qualityIndex];
+                    
+                    if (selectedQuality.height === 1080) {
+                        manifestUrl = baseUrl + '/output_1080p.mpd';
+                    } else if (selectedQuality.height === 720) {
+                        manifestUrl = baseUrl + '/output_720p.mpd';
+                    } else if (selectedQuality.height === 480) {
+                        manifestUrl = baseUrl + '/output_480p.mpd';
+                    } else {
+                        // Fallback para o manifest original com configurações forçadas
+                        manifestUrl = url;
+                    }
+                    
+                    console.log("Usando manifest específico:", manifestUrl);
+                }
+                
+                // Destruir player atual
+                if (player) {
+                    player.reset();
+                    console.log("Player resetado");
+                }
+                
+                // Criar novo player
+                player = dashjs.MediaPlayer().create();
+                
+                // Para qualidades específicas, configurar limitações de bitrate
+                if (qualityIndex !== -1) {
+                    var selectedQuality = availableQualities[qualityIndex];
+                    var targetBitrate = selectedQuality.bitrate || 1000000;
+                    
+                    var settings = {
+                        streaming: {
+                            abr: {
+                                autoSwitchBitrate: {
+                                    video: false,
+                                    audio: true
+                                },
+                                maxBitrate: {
+                                    video: targetBitrate + 100000
+                                },
+                                minBitrate: {
+                                    video: Math.max(1000, targetBitrate - 100000)
+                                }
+                            }
+                        }
+                    };
+                    
+                    player.updateSettings(settings);
+                    console.log("Configurações aplicadas para qualidade específica");
+                }
+                
+                // Reconfigurar eventos
+                setupPlayerEvents();
+                
+                // Reinicializar player com novo manifest
+                player.initialize(video, manifestUrl, false);
+                
+                // Aguardar carregar e restaurar estado
+                var restoreState = function() {
+                    console.log("Tentando restaurar estado...");
+                    if (video.readyState >= 2) {
+                        video.currentTime = currentTime;
+                        video.volume = currentVolume;
+                        video.muted = wasMuted;
+                        
+                        if (wasPlaying) {
+                            video.play().then(function() {
+                                console.log("Reprodução restaurada");
+                            }).catch(function(e) {
+                                console.log("Erro ao restaurar reprodução:", e);
+                            });
+                        }
+                        
+                        setTimeout(function() {
+                            updateCurrentQualityDisplay();
+                            if (qualityIndex === -1) {
+                                alert("Qualidade automática aplicada!");
+                            } else {
+                                alert("Qualidade " + availableQualities[qualityIndex].height + "p aplicada!");
+                            }
+                        }, 500);
+                    } else {
+                        setTimeout(restoreState, 500);
+                    }
+                };
+                
+                setTimeout(restoreState, 1500);
+                
+            } catch (e) {
+                console.log("❌ Erro ao aplicar qualidade:", e.message);
+                alert("Erro ao mudar qualidade: " + e.message);
+            }
+        }
+
+        function setupPlayerEvents() {
+            // Reconfigurar todos os eventos do player
+            player.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, function() {
+                console.log("Stream inicializado");
+                setTimeout(loadQualities, 500);
+            });
+            
+            player.on(dashjs.MediaPlayer.events.MANIFEST_LOADED, function() {
+                console.log("Manifest carregado");
+                setTimeout(loadQualities, 300);
+            });
+            
+            player.on(dashjs.MediaPlayer.events.CAN_PLAY, function() {
+                console.log("Pode reproduzir");
+                setTimeout(loadQualities, 200);
+            });
+
+            player.on(dashjs.MediaPlayer.events.PLAYBACK_STARTED, function() {
+                console.log("Reprodução iniciada");
+                setTimeout(loadQualities, 100);
+                setTimeout(updateCurrentQualityDisplay, 1000);
+            });
+
+            player.on(dashjs.MediaPlayer.events.QUALITY_CHANGE_RENDERED, function(e) {
+                console.log("Qualidade mudou:", e);
+                setTimeout(updateCurrentQualityDisplay, 100);
+            });
+        }
+
+        function loadQualities() {
+            console.log("=== Tentando carregar qualidades ===");
+            console.log("qualitiesLoaded:", qualitiesLoaded);
+            
+            if (qualitiesLoaded) return;
+            
+            var qualities = [];
+            
+            try {
+                // Versão mais recente do dash.js
+                if (typeof player.getBitrateInfoListFor === 'function') {
+                    qualities = player.getBitrateInfoListFor("video");
+                    console.log("Usando getBitrateInfoListFor:", qualities);
+                }
+                // Versão mais antiga
+                else if (typeof player.getMaxQualityFor === 'function') {
+                    var maxQuality = player.getMaxQualityFor("video");
+                    console.log("Max quality:", maxQuality);
+                    
+                    if (maxQuality && typeof maxQuality.index === 'number') {
+                        for (var i = 0; i <= maxQuality.index; i++) {
+                            qualities.push({
+                                qualityIndex: i,
+                                bitrate: 500000 + (i * 500000), // Estimativa baseada no índice
+                                height: i === 0 ? 480 : (i === 1 ? 720 : 1080),
+                                width: i === 0 ? 854 : (i === 1 ? 1280 : 1920)
+                            });
+                        }
+                        console.log("Qualidades geradas baseadas no índice máximo:", qualities);
+                    }
+                }
+                // Fallback - criar qualidades baseadas no manifest
+                else {
+                    // Assumir que temos 3 qualidades baseadas no nosso pipeline
+                    qualities = [
+                        { qualityIndex: 0, bitrate: 500000, height: 480, width: 854 },
+                        { qualityIndex: 1, bitrate: 1000000, height: 720, width: 1280 },
+                        { qualityIndex: 2, bitrate: 2000000, height: 1080, width: 1920 }
+                    ];
+                    console.log("Usando qualidades padrão:", qualities);
+                }
+            } catch (e) {
+                console.log("Erro ao obter qualidades:", e.message);
+                // Fallback final
+                qualities = [
+                    { qualityIndex: 0, bitrate: 500000, height: 480, width: 854 },
+                    { qualityIndex: 1, bitrate: 1000000, height: 720, width: 1280 },
+                    { qualityIndex: 2, bitrate: 2000000, height: 1080, width: 1920 }
+                ];
+                console.log("Usando qualidades de fallback:", qualities);
+            }
+            
+            if (qualities && qualities.length > 0) {
+                qualitiesLoaded = true;
+                availableQualities = qualities; // Armazena para uso posterior
+                console.log("Processando", qualities.length, "qualidades");
+                
+                // Remove todas as opções exceto a primeira (Automática)
+                while (selector.options.length > 1) {
+                    selector.removeChild(selector.lastChild);
+                }
+                
+                // Adiciona as opções de qualidade ordenadas por altura (maior primeiro)
+                var sortedQualities = qualities.slice().sort((a, b) => (b.height || 0) - (a.height || 0));
+                
+                sortedQualities.forEach(function(q, sortedIndex) {
+                    var option = document.createElement("option");
+                    var originalIndex = q.qualityIndex !== undefined ? q.qualityIndex : qualities.indexOf(q);
+                    option.value = originalIndex;
+                    option.text = (q.height || "?") + "p (" + Math.round((q.bitrate || 0)/1000) + " kbps)";
+                    selector.appendChild(option);
+                    console.log("Adicionada qualidade:", option.text, "índice:", originalIndex);
+                });
+                
+                console.log("Total de qualidades carregadas:", selector.options.length - 1);
+                
+                // Atualiza o display da qualidade atual
+                setTimeout(updateCurrentQualityDisplay, 1000);
+                return;
+            }
+            
+            console.log("Nenhuma qualidade encontrada, tentando novamente...");
+            if (!qualitiesLoaded) {
+                setTimeout(loadQualities, 500);
+            }
+        }
+
+        // Múltiplos eventos para garantir que as qualidades sejam carregadas
+        setupPlayerEvents();
+
+        // Inicializar o player
+        player.initialize(video, url, true);
+
+        // Tentar carregar qualidades após delays progressivos
+        setTimeout(function() {
+            if (!qualitiesLoaded) {
+                console.log("Tentando carregar qualidades após 2s...");
+                loadQualities();
+            }
+        }, 2000);
+
+        setTimeout(function() {
+            if (!qualitiesLoaded) {
+                console.log("Tentando carregar qualidades após 5s...");
+                loadQualities();
+            }
+        }, 5000);
+
+        // Função de debug global
+        window.debugPlayer = function() {
+            console.log("=== DEBUG PLAYER COMPLETO ===");
+            console.log("Player ready:", player.isReady());
+            console.log("Video element:", video);
+            console.log("Video src:", video.src);
+            console.log("Video readyState:", video.readyState);
+            console.log("URL do manifest:", url);
+            
+            // Listar TODOS os métodos disponíveis no player
+            var allMethods = [];
+            var obj = player;
+            while (obj) {
+                allMethods = allMethods.concat(Object.getOwnPropertyNames(obj).filter(name => typeof player[name] === 'function'));
+                obj = Object.getPrototypeOf(obj);
+            }
+            allMethods = [...new Set(allMethods)].sort(); // Remove duplicatas e ordena
+            console.log("Todos os métodos disponíveis:", allMethods);
+            
+            // Métodos específicos de qualidade
+            var qualityMethods = allMethods.filter(method => 
+                method.toLowerCase().includes('quality') || 
+                method.toLowerCase().includes('bitrate') || 
+                method.toLowerCase().includes('abr') ||
+                method.toLowerCase().includes('auto')
+            );
+            console.log("Métodos relacionados à qualidade:", qualityMethods);
+            
+            // Tentar diferentes métodos da API
+            try {
+                if (typeof player.getBitrateInfoListFor === 'function') {
+                    console.log("getBitrateInfoListFor:", player.getBitrateInfoListFor("video"));
+                }
+            } catch (e) {
+                console.log("getBitrateInfoListFor error:", e.message);
+            }
+            
+            try {
+                if (typeof player.getQualityFor === 'function') {
+                    console.log("getQualityFor:", player.getQualityFor("video"));
+                }
+                if (typeof player.getMaxQualityFor === 'function') {
+                    console.log("getMaxQualityFor:", player.getMaxQualityFor("video"));
+                }
+            } catch (e) {
+                console.log("Quality methods error:", e.message);
+            }
+            
+            try {
+                if (typeof player.getSettings === 'function') {
+                    console.log("Settings:", player.getSettings());
+                }
+            } catch (e) {
+                console.log("Settings error:", e.message);
+            }
+            
+            try {
+                if (typeof player.getSource === 'function') {
+                    console.log("Source:", player.getSource());
+                }
+            } catch (e) {
+                console.log("Source error:", e.message);
+            }
+            
+            console.log("Available qualities:", availableQualities);
+            
+            qualitiesLoaded = false;
+            loadQualities();
+        };
+
+        // Visual feedback when selecting quality (no automatic application)
+        selector.addEventListener("change", function() {
+            var qualityIndex = parseInt(this.value);
+            var applyButton = document.getElementById("applyQuality");
+            
+            if (qualityIndex === -1) {
+                applyButton.textContent = "Aplicar (Auto)";
+                applyButton.style.backgroundColor = "#007bff";
+            } else {
+                var selectedQuality = availableQualities.find(q => 
+                    (q.qualityIndex !== undefined ? q.qualityIndex : availableQualities.indexOf(q)) === qualityIndex);
+                if (selectedQuality) {
+                    applyButton.textContent = "Aplicar (" + selectedQuality.height + "p)";
+                    applyButton.style.backgroundColor = "#28a745";
+                } else {
+                    applyButton.textContent = "Aplicar";
+                    applyButton.style.backgroundColor = "#28a745";
+                }
+            }
+            applyButton.style.color = "white";
+            applyButton.style.border = "none";
+            applyButton.style.padding = "5px 10px";
+            applyButton.style.borderRadius = "3px";
+        });
+    </script>
+</body>
+</html>

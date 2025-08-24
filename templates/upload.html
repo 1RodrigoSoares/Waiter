@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Enviar vídeo</h2>
+
+<form id="upload-form" action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
+  <label for="video">Escolha o arquivo (mp4, mkv...):</label><br/>
+  <input type="file" id="video" name="video" accept="video/*" required><br/><br/>
+  <button type="submit">Enviar</button>
+</form>
+
+<div id="progress-wrapper" style="display:none;">
+  <p>Upload: <span id="percent">0%</span></p>
+  <progress id="progress" value="0" max="100"></progress>
+</div>
+
+<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+{% endblock %}
