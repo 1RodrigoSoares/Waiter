@@ -39,6 +39,7 @@
             <button class="quality-button" onclick="changeQuality('1080p')" id="btn-1080p">1080p</button>
             <button class="quality-button" onclick="changeQuality('720p')" id="btn-720p">720p</button>
             <button class="quality-button" onclick="changeQuality('480p')" id="btn-480p">480p</button>
+            <button class="quality-button" onclick="changeQuality('240p')" id="btn-240p">240p</button>
         </div>
         <div id="currentQuality">Qualidade atual: Carregando...</div>
     </div>
@@ -54,7 +55,8 @@
             'auto': "{{ mpd_url }}",
             '1080p': baseUrl + '/video_1080p.mp4',
             '720p': baseUrl + '/video_720p.mp4',
-            '480p': baseUrl + '/video_480p.mp4'
+            '480p': baseUrl + '/video_480p.mp4',
+            '240p': baseUrl + '/video_240p.mp4'
         };
 
         function updateButtonStates() {

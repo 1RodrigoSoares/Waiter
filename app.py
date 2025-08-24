@@ -32,20 +32,18 @@ def run_command(cmd_list):
 
 def transcode_and_multiplex_dash(input_path: Path, dest_dir: Path):
     """
-    Pipeline solicitado pelo usuário:
-      - Gera três resoluções H.265: 1080p, 720p, 480p (sem áudio)
-      - Gera duas faixas de áudio AAC: estéreo e mono
+    Pipeline simplificado:
+      - Gera quatro resoluções H.264: 240p, 480p, 720p, 1080p (COM áudio estéreo)
       - Multiplexa tudo em um único manifesto DASH (output.mpd) com segmentos .m4s
-      - Gera uma thumbnail opcional (não interfere no DASH)
+      - Gera uma thumbnail opcional
     """
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    # Arquivos intermediários
-    v1080 = dest_dir / "video_1080p.mp4"
-    v720  = dest_dir / "video_720p.mp4"
+    # Arquivos de vídeo com áudio
+    v240  = dest_dir / "video_240p.mp4"
     v480  = dest_dir / "video_480p.mp4"
-    a_st  = dest_dir / "audio_stereo.m4a"
-    a_mo  = dest_dir / "audio_mono.m4a"
+    v720  = dest_dir / "video_720p.mp4"
+    v1080 = dest_dir / "video_1080p.mp4"
     mpd   = dest_dir / "output.mpd"
     thumb = dest_dir / "thumbnail.jpg"
 
@@ -62,60 +60,56 @@ def transcode_and_multiplex_dash(input_path: Path, dest_dir: Path):
     except Exception as e:
         print("Falha ao gerar thumbnail:", e)
 
-    # Vídeo 1080p
+    # Vídeo 240p COM áudio
     run_command([
         "ffmpeg", "-y", "-i", str(input_path),
-        "-vf", "scale=1920:1080,setsar=1,setdar=16/9",
-        "-c:v", "libx264", "-crf", "23", "-preset", "fast", "-an",
-        str(v1080)
+        "-vf", "scale=426:240,setsar=1,setdar=16/9",
+        "-c:v", "libx264", "-crf", "28", "-preset", "fast",
+        "-c:a", "aac", "-ac", "2", "-b:a", "96k",
+        str(v240)
     ])
 
-    # Vídeo 720p
-    run_command([
-        "ffmpeg", "-y", "-i", str(input_path),
-        "-vf", "scale=1280:720,setsar=1,setdar=16/9",
-        "-c:v", "libx264", "-crf", "23", "-preset", "fast", "-an",
-        str(v720)
-    ])
-
-    # Vídeo 480p
+    # Vídeo 480p COM áudio
     run_command([
         "ffmpeg", "-y", "-i", str(input_path),
         "-vf", "scale=854:480,setsar=1,setdar=16/9",
-        "-c:v", "libx264", "-crf", "23", "-preset", "fast", "-an",
+        "-c:v", "libx264", "-crf", "25", "-preset", "fast",
+        "-c:a", "aac", "-ac", "2", "-b:a", "128k",
         str(v480)
     ])
 
-    # Áudio estéreo
+    # Vídeo 720p COM áudio
     run_command([
         "ffmpeg", "-y", "-i", str(input_path),
-        "-c:a", "aac", "-ac", "2", "-vn",
-        str(a_st)
+        "-vf", "scale=1280:720,setsar=1,setdar=16/9",
+        "-c:v", "libx264", "-crf", "23", "-preset", "fast",
+        "-c:a", "aac", "-ac", "2", "-b:a", "128k",
+        str(v720)
     ])
 
-    # Áudio mono
+    # Vídeo 1080p COM áudio
     run_command([
         "ffmpeg", "-y", "-i", str(input_path),
-        "-c:a", "aac", "-ac", "1", "-vn",
-        str(a_mo)
+        "-vf", "scale=1920:1080,setsar=1,setdar=16/9",
+        "-c:v", "libx264", "-crf", "21", "-preset", "fast",
+        "-c:a", "aac", "-ac", "2", "-b:a", "192k",
+        str(v1080)
     ])
 
-    # Multiplexação DASH
+    # Multiplexação DASH usando os mesmos arquivos
     run_command([
         "ffmpeg",
-        "-i", str(v1080),
-        "-i", str(v720),
+        "-i", str(v240),
         "-i", str(v480),
-        "-i", str(a_st),
-        "-i", str(a_mo),
-        "-map", "0:v", "-map", "1:v", "-map", "2:v",
-        "-map", "3:a", "-map", "4:a",
+        "-i", str(v720),
+        "-i", str(v1080),
+        "-map", "0", "-map", "1", "-map", "2", "-map", "3",
         "-c", "copy",
         "-f", "dash",
         "-seg_duration", "4",
         "-use_timeline", "1",
         "-use_template", "1",
-        "-adaptation_sets", "id=0,streams=0,1,2 id=1,streams=3,4",
+        "-adaptation_sets", "id=0,streams=v id=1,streams=a",
         str(mpd)
     ])
 
