@@ -1,28 +1,50 @@
-{% extends "base.html" %}
-{% block content %}
-<h2>Vídeos disponíveis</h2>
+{% extends "base.html" %} {% block content %}
+<hr />
 
 {% if videos %}
-  <div class="grid">
-    {% for v in videos %}
-      <div class="card">
-        {% if v.thumbnail %}
-          <img src="{{ v.thumbnail }}" alt="thumb" class="thumb">
-        {% else %}
-          <div class="thumb placeholder">Sem miniatura</div>
-        {% endif %}
-        <div class="meta">
-          <strong>{{ v.original_name }}</strong>
-        </div>
-        <div class="actions">
-          <a class="btn" href="{{ url_for('watch', video_id=v.id) }}">Assistir</a>
-          <a class="btn" href="{{ url_for('serve_video_file', video_id=v.id, filename=v.mpd) }}" target="_blank">Manifest</a>
-        </div>
+<div class="grid">
+  {% for v in videos %}
+  <a
+    href="{{ url_for('watch', video_id=v.id) }}"
+    style="text-decoration: none; color: inherit"
+  >
+    <div class="card" style="cursor: pointer">
+      {% if v.thumbnail %}
+      <img src="{{ v.thumbnail }}" alt="thumb" class="thumb" />
+      {% else %}
+      <div class="thumb placeholder">Sem miniatura</div>
+      {% endif %}
+      <div class="meta">
+        <strong>{{ v.original_name }}</strong>
       </div>
-    {% endfor %}
-  </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
 {% else %}
-  <p>Nenhum vídeo disponível. <a href="{{ url_for('upload') }}">Envie um agora</a>.</p>
-{% endif %}
-
-{% endblock %}
+<div
+  style="
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    margin-top: 2rem;
+    font-size: 1.15em;
+    color: #888;
+    font-weight: 500;
+  "
+>
+  <span style="font-size: 1.5em">&#128249;</span>
+  Nenhum vídeo disponível.
+  <a
+    href="{{ url_for('upload') }}"
+    style="
+      color: #0066cc;
+      font-weight: 600;
+      text-decoration: none;
+      margin-left: 0.3em;
+    "
+  >
+    Envie um agora
+  </a>
+</div>
+{% endif %} {% endblock %}

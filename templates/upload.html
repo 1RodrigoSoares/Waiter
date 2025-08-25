@@ -1,14 +1,29 @@
-{% extends "base.html" %}
-{% block content %}
+{% extends "base.html" %} {% block content %}
+<hr />
 <h2>Enviar vídeo</h2>
 
-<form id="upload-form" action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
-  <label for="video">Escolha o arquivo (mp4, mkv...):</label><br/>
-  <input type="file" id="video" name="video" accept="video/*" required><br/><br/>
-  <button type="submit">Enviar</button>
+<form
+  id="upload-form"
+  action="{{ url_for('upload') }}"
+  method="post"
+  enctype="multipart/form-data"
+  class="upload-form"
+>
+  <label for="video" class="upload-label">Escolha o arquivo:</label>
+  <input
+    type="file"
+    id="video"
+    name="video"
+    accept="video/*"
+    required
+    class="upload-input"
+  />
+  <button type="submit" class="upload-submit">
+    <span style="font-weight: bold; font-size: 1.2em">&#8682;</span> Enviar
+  </button>
 </form>
 
-<div id="progress-wrapper" style="display:none;">
+<div id="progress-wrapper" style="display: none">
   <p>Upload: <span id="percent">0%</span></p>
   <progress id="progress" value="0" max="100"></progress>
 </div>

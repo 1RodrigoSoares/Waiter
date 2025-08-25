@@ -1,36 +1,46 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mini VOD DASH</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-  <header>
-    <h1><a href="{{ url_for('list_videos') }}">Mini VOD (HTTP-DASH)</a></h1>
-    <nav>
-      <a href="{{ url_for('upload') }}">Fazer upload</a> |
-      <a href="{{ url_for('list_videos') }}">Listar vídeos</a>
-    </nav>
-  </header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Waiter</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Oswald:wght@700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header>
+      <h1 class="waiter-title">
+        <img
+          src="{{ url_for('static', filename='img/waiter.png') }}"
+          alt="Waiter logo"
+        />
+        <a href="{{ url_for('list_videos') }}" class="waiter-title-text"
+          >Waiter</a
+        >
+      </h1>
+      <nav>
+        <a href="{{ url_for('upload') }}" class="upload-btn">
+          <span style="font-weight: bold; font-size: 1.2em">+</span> Fazer
+          upload
+        </a>
+      </nav>
+    </header>
 
-  <main>
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="flashes">
+    <main>
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %}
+      <div class="flashes">
         {% for category, msg in messages %}
-          <div class="flash {{ category }}">{{ msg }}</div>
+        <div class="flash {{ category }}">{{ msg }}</div>
         {% endfor %}
-        </div>
-      {% endif %}
-    {% endwith %}
-
-    {% block content %}{% endblock %}
-  </main>
-
-  <footer>
-    <small>Exemplo didático — utiliza FFmpeg (libx265) e dash.js</small>
-  </footer>
-</body>
+      </div>
+      {% endif %} {% endwith %} {% block content %}{% endblock %}
+    </main>
+  </body>
 </html>
