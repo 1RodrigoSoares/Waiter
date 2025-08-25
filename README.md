@@ -141,7 +141,7 @@ A aplicação estará disponível em: `http://localhost:5001`
 - **Adaptação automática**: Baseada na largura de banda
 
 
-## 📈 Melhorias Futuras
+## Melhorias Futuras
 
 - [ ] Suporte a legendas
 - [ ] Streaming ao vivo
@@ -152,11 +152,11 @@ A aplicação estará disponível em: `http://localhost:5001`
 - [ ] Suporte a playlists
 - [ ] Integração com CDN
 
-## 📄 Licença
+## Licença
 
 Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
 
-## 👨‍💻 Autor
+## Autores
 
 **Rodrigo Soares**
 - GitHub: [@1RodrigoSoares](https://github.com/1RodrigoSoares)
