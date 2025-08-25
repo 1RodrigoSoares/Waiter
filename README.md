@@ -65,7 +65,7 @@ brew install ffmpeg
 
 ### 1. Clonar o Repositório
 ```bash
-git clone https://github.com/1RodrigoSoares/VidTube.git
+git clone https://github.com/1RodrigoSoares/Waiter.git
 cd VidTube
 ```
 
@@ -163,51 +163,6 @@ VidTube/
 - **Uso de timeline**: Habilitado
 - **Adaptação automática**: Baseada na largura de banda
 
-## 🔧 Personalização
-
-### Alterar Qualidades de Vídeo
-Edite a função `transcode_and_multiplex_dash` em `app.py`:
-
-```python
-# Exemplo: Adicionar resolução 4K
-run_command([
-    "ffmpeg", "-y", "-i", str(input_path),
-    "-vf", "scale=3840:2160,setsar=1,setdar=16/9",
-    "-c:v", "libx264", "-crf", "20", "-preset", "fast",
-    "-an", str(v4k_dash)
-])
-```
-
-### Modificar Interface
-- **CSS**: Edite os estilos nos templates HTML
-- **Layout**: Modifique os arquivos em `templates/`
-- **JavaScript**: Personalize o player em `templates/player.html`
-
-## 🐛 Solução de Problemas
-
-### Erro: "FFmpeg não encontrado"
-```bash
-# Verificar se está instalado
-which ffmpeg
-
-# Instalar se necessário (Ubuntu)
-sudo apt install ffmpeg
-```
-
-### Erro: "Comando falhou"
-1. Verifique se o arquivo de vídeo não está corrompido
-2. Confirme que há espaço em disco suficiente
-3. Verifique as permissões das pastas `uploads/` e `videos/`
-
-### Vídeo não carrega no player
-1. Verifique se o processamento foi concluído
-2. Confirme que o arquivo `.mpd` foi gerado
-3. Verifique o console do navegador para erros JavaScript
-
-### Performance lenta
-1. Use um SSD para armazenamento
-2. Aumente a RAM disponível
-3. Configure preset FFmpeg mais rápido (ultrafast)
 
 ## 📈 Melhorias Futuras
 
@@ -220,14 +175,6 @@ sudo apt install ffmpeg
 - [ ] Suporte a playlists
 - [ ] Integração com CDN
 
-## 🤝 Contribuição
-
-1. Faça um fork do projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
-5. Abra um Pull Request
-
 ## 📄 Licença
 
 Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
@@ -236,13 +183,4 @@ Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalh
 
 **Rodrigo Soares**
 - GitHub: [@1RodrigoSoares](https://github.com/1RodrigoSoares)
-
-## 🙏 Agradecimentos
-
-- [FFmpeg](https://ffmpeg.org/) - Processamento de mídia
-- [dash.js](https://github.com/Dash-Industry-Forum/dash.js/) - Player DASH
-- [Flask](https://flask.palletsprojects.com/) - Framework web Python
-
----
-
-⭐ Se este projeto foi útil para você, considere dar uma estrela no repositório!
+- GitHub: [@lucasduartec](https://github.com/lucasduartec)
