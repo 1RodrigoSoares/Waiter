@@ -138,13 +138,14 @@ def upload():
             return redirect(request.url)
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            unique_id = uuid.uuid4().hex
-            saved_name = f"{unique_id}_{filename}"
+            # Remove unique_id from saved_name
+            saved_name = filename
             save_path = UPLOAD_FOLDER / saved_name
             file.save(save_path)
             flash("Arquivo recebido. Processando (transcodificação + DASH)...", "info")
 
-            video_dir = VIDEOS_FOLDER / unique_id
+            # Use the filename (without extension) as the video_dir name
+            video_dir = VIDEOS_FOLDER / Path(filename).stem
             try:
                 mpd_path = transcode_and_multiplex_dash(save_path, video_dir)
                 meta_path = video_dir / "meta.txt"
