@@ -30,6 +30,24 @@ def run_command(cmd_list):
         raise RuntimeError(f"Comando falhou: {' '.join(cmd_list)}\nSTDOUT: {proc.stdout}\nSTDERR: {proc.stderr}")
     return proc.stdout, proc.stderr
 
+def create_processing_lock(video_dir):
+    """Create a lock file to indicate video is being processed."""
+    lock_file = video_dir / ".processing"
+    lock_file.write_text("processing", encoding="utf-8")
+
+def remove_processing_lock(video_dir):
+    """Remove the processing lock file when video is ready."""
+    lock_file = video_dir / ".processing"
+    lock_file.unlink(missing_ok=True)
+
+def is_video_processing(video_dir):
+    """Check if video is still being processed."""
+    return (video_dir / ".processing").exists()
+
+def is_video_ready(video_dir):
+    """Check if video processing is complete and ready to watch."""
+    return (video_dir / "output.mpd").exists() and not is_video_processing(video_dir)
+
 def transcode_and_multiplex_dash(input_path: Path, dest_dir: Path):
     dest_dir.mkdir(parents=True, exist_ok=True)
 
@@ -146,13 +164,23 @@ def upload():
 
             # Use the filename (without extension) as the video_dir name
             video_dir = VIDEOS_FOLDER / Path(filename).stem
+            
+            # Create processing lock
+            video_dir.mkdir(parents=True, exist_ok=True)
+            create_processing_lock(video_dir)
+            
             try:
                 mpd_path = transcode_and_multiplex_dash(save_path, video_dir)
                 meta_path = video_dir / "meta.txt"
                 if not meta_path.exists():
                     meta_path.write_text(f"original_filename={filename}\nmpd={mpd_path.name}\n", encoding="utf-8")
+                
+                # Remove processing lock when done
+                remove_processing_lock(video_dir)
                 flash("Processamento concluído!", "success")
             except Exception as e:
+                # Remove processing lock on error
+                remove_processing_lock(video_dir)
                 if video_dir.exists():
                     shutil.rmtree(video_dir, ignore_errors=True)
                 flash(f"Erro ao processar: {e}", "danger")
@@ -183,7 +211,9 @@ def list_videos():
             "id": video_id,
             "original_name": meta.get("original_filename", "Sem nome"),
             "thumbnail": f"/videos/{video_id}/thumbnail.jpg" if (d / "thumbnail.jpg").exists() else None,
-            "mpd": meta.get("mpd", "output.mpd")
+            "mpd": meta.get("mpd", "output.mpd"),
+            "is_processing": is_video_processing(d),
+            "is_ready": is_video_ready(d)
         })
     return render_template("list.html", videos=videos)
 
@@ -193,6 +223,17 @@ def watch(video_id):
     if not video_dir.exists():
         flash("Vídeo não encontrado", "danger")
         return redirect(url_for("list_videos"))
+    
+    # Check if video is still processing
+    if is_video_processing(video_dir):
+        flash("Vídeo ainda está sendo processado. Aguarde alguns minutos.", "warning")
+        return redirect(url_for("list_videos"))
+    
+    # Check if video is ready
+    if not is_video_ready(video_dir):
+        flash("Vídeo não está disponível para reprodução.", "danger")
+        return redirect(url_for("list_videos"))
+    
     mpd_name = "output.mpd"
     meta_file = video_dir / "meta.txt"
     title = video_id
@@ -219,6 +260,8 @@ def video_status(video_id):
     d = VIDEOS_FOLDER / video_id
     return jsonify({
         "exists": d.exists(),
+        "is_processing": is_video_processing(d) if d.exists() else False,
+        "is_ready": is_video_ready(d) if d.exists() else False,
         "files": [f.name for f in d.iterdir()] if d.exists() else []
     })
 

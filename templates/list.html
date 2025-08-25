@@ -4,23 +4,130 @@
 {% if videos %}
 <div class="grid">
   {% for v in videos %}
-  <a
-    href="{{ url_for('watch', video_id=v.id) }}"
-    style="text-decoration: none; color: inherit"
-  >
-    <div class="card" style="cursor: pointer">
+  <div class="card-container">
+    {% if v.is_ready %}
+    <!-- Ready video - clickable -->
+    <a
+      href="{{ url_for('watch', video_id=v.id) }}"
+      style="text-decoration: none; color: inherit"
+    >
+      <div class="card" style="cursor: pointer">
+        {% if v.thumbnail %}
+        <img src="{{ v.thumbnail }}" alt="thumb" class="thumb" />
+        {% else %}
+        <div class="thumb placeholder">Sem miniatura</div>
+        {% endif %}
+        <div class="meta">
+          <strong>{{ v.original_name }}</strong>
+          <div class="status ready">✓ Pronto para assistir</div>
+        </div>
+      </div>
+    </a>
+    {% elif v.is_processing %}
+    <!-- Processing video - locked -->
+    <div class="card processing" style="position: relative; cursor: not-allowed; opacity: 0.7">
+      <div class="processing-overlay">
+        <div class="spinner"></div>
+        <div class="processing-text">Processando...</div>
+      </div>
       {% if v.thumbnail %}
-      <img src="{{ v.thumbnail }}" alt="thumb" class="thumb" />
+      <img src="{{ v.thumbnail }}" alt="thumb" class="thumb" style="filter: blur(2px)" />
       {% else %}
       <div class="thumb placeholder">Sem miniatura</div>
       {% endif %}
       <div class="meta">
         <strong>{{ v.original_name }}</strong>
+        <div class="status processing">🔄 Processando vídeo...</div>
       </div>
     </div>
-  </a>
+    {% else %}
+    <!-- Error state -->
+    <div class="card error" style="cursor: not-allowed; opacity: 0.5">
+      {% if v.thumbnail %}
+      <img src="{{ v.thumbnail }}" alt="thumb" class="thumb" style="filter: grayscale(100%)" />
+      {% else %}
+      <div class="thumb placeholder">Erro</div>
+      {% endif %}
+      <div class="meta">
+        <strong>{{ v.original_name }}</strong>
+        <div class="status error">❌ Erro no processamento</div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
   {% endfor %}
 </div>
+
+<style>
+.card-container {
+  position: relative;
+}
+
+.processing-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  text-align: center;
+  color: white;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255,255,255,0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 10px;
+}
+
+.processing-text {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.status {
+  font-size: 12px;
+  margin-top: 8px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.status.ready {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status.processing {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.status.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.card.processing:hover,
+.card.error:hover {
+  transform: none;
+  box-shadow: none;
+}
+</style>
+
 {% else %}
 <div
   style="
@@ -47,4 +154,21 @@
     Envie um agora
   </a>
 </div>
-{% endif %} {% endblock %}
+{% endif %} 
+
+{% if videos %}
+{% set has_processing = namespace(found=false) %}
+{% for v in videos %}
+{% if v.is_processing and not has_processing.found %}
+{% set has_processing.found = true %}
+<script>
+// Auto-refresh when videos are processing
+setTimeout(() => {
+  window.location.reload();
+}, 10000);
+</script>
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% endblock %}
