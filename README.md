@@ -1,4 +1,4 @@
-# VidTube - Sistema de Streaming de Vídeo com DASH
+# Waiter - Sistema de Streaming de Vídeo com DASH
 
 Um sistema completo de upload e streaming de vídeos com transcodificação automática e streaming adaptativo DASH (Dynamic Adaptive Streaming over HTTP).
 
