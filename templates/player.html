@@ -3,96 +3,127 @@
   <head>
     <meta charset="UTF-8" />
     <title>{{title}}</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        text-align: center;
-        background: #f7f7f7;
-      }
-      video {
-        width: 80%;
-        margin-top: 20px;
-      }
-      #qualitySelector {
-        margin-top: 15px;
-        padding: 8px;
-      }
-      .quality-controls {
-        margin: 20px 0;
-      }
-      .quality-button {
-        margin: 5px;
-        padding: 10px 15px;
-        background: #007bff;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 14px;
-      }
-      .quality-button:hover {
-        background: #0056b3;
-      }
-      .quality-button.active {
-        background: #28a745;
-      }
-      #currentQuality {
-        margin-top: 10px;
-        padding: 5px 10px;
-        background: #e9ecef;
-        border-radius: 3px;
-        display: inline-block;
-      }
+        <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            text-align: center; 
+            background: #f7f7f7; 
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .video-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 24px;
+        }
+        
+        video { 
+            width: 100%; 
+            max-width: 700px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .video-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            margin: 20px 0 10px 0;
+            text-align: center;
+        }
+        
+        .quality-controls { 
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .quality-label {
+            font-weight: 600;
+            color: #555;
+            font-size: 14px;
+        }
+        
+        .quality-dropdown {
+            padding: 8px 16px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            font-size: 14px;
+            color: #333;
+            cursor: pointer;
+            transition: border-color 0.2s ease;
+            min-width: 120px;
+        }
+        
+        .quality-dropdown:hover {
+            border-color: #007bff;
+        }
+        
+        .quality-dropdown:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        }
+        
+        #currentQuality { 
+            margin-top: 10px; 
+            padding: 6px 12px; 
+            background: #e9ecef; 
+            border-radius: 6px; 
+            display: inline-block;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .back-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px 16px;
+            background: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .back-button:hover {
+            background: #5a6268;
+            text-decoration: none;
+            color: white;
+        }
     </style>
   </head>
   <body>
-    <h1>{{title}}</h1>
-    <video id="videoPlayer" controls></video>
+    <a href="/videos" class="back-button">← Voltar</a>
+    
+    <div class="video-container">
+        <video id="videoPlayer" controls></video>
+        
+        <div class="video-title">{{ title }}</div>
 
-    <div class="quality-controls">
-      <div>
-        <button
-          class="quality-button"
-          onclick="changeQuality('auto')"
-          id="btn-auto"
-        >
-          Automática
-        </button>
-        <button
-          class="quality-button"
-          onclick="changeQuality('1080p')"
-          id="btn-1080p"
-        >
-          1080p
-        </button>
-        <button
-          class="quality-button"
-          onclick="changeQuality('720p')"
-          id="btn-720p"
-        >
-          720p
-        </button>
-        <button
-          class="quality-button"
-          onclick="changeQuality('480p')"
-          id="btn-480p"
-        >
-          480p
-        </button>
-        <button
-          class="quality-button"
-          onclick="changeQuality('240p')"
-          id="btn-240p"
-        >
-          240p
-        </button>
-      </div>
-      <div id="currentQuality">Qualidade atual: Carregando...</div>
+        <div class="quality-controls">
+            <label class="quality-label" for="qualitySelector">Selecionar Resolução:</label>
+            <select id="qualitySelector" class="quality-dropdown" onchange="changeQuality(this.value)">
+                <option value="auto">Automática</option>
+                <option value="1080p">1080p</option>
+                <option value="720p">720p</option>
+                <option value="480p">480p</option>
+                <option value="240p">240p</option>
+            </select>
+        </div>
     </div>
 
     <script>
       const video = document.querySelector("#videoPlayer");
-      const currentQualitySpan = document.getElementById("currentQuality");
       const mpd_url = "{{ mpd_url }}";
 
       let dashPlayer = null;
@@ -107,18 +138,15 @@
       };
 
       function updateButtonStates() {
-        document
-          .querySelectorAll(".quality-button")
-          .forEach((btn) => btn.classList.remove("active"));
-        document
-          .getElementById("btn-" + currentQuality)
-          ?.classList.add("active");
+        // Update dropdown selection
+        const dropdown = document.getElementById('qualitySelector');
+        if (dropdown) {
+          dropdown.value = currentQuality;
+        }
       }
 
       function updateDisplay() {
-        currentQualitySpan.textContent = `Qualidade atual: ${
-          currentQuality === "auto" ? "Automática" : currentQuality
-        }`;
+        // Quality display removed - dropdown shows current selection
       }
 
       function initPlayer() {
