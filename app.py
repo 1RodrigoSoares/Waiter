@@ -12,40 +12,34 @@ UPLOAD_FOLDER = BASE_DIR / "uploads"
 VIDEOS_FOLDER = BASE_DIR / "videos"
 ALLOWED_EXTENSIONS = {"mp4", "mov", "mkv", "webm", "avi"}
 
-# Certifique-se que pastas existem
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 VIDEOS_FOLDER.mkdir(parents=True, exist_ok=True)
 
 app = Flask(__name__)
-app.secret_key = "troque_esta_chave_para_producao"  # só para flashes (ex.: em dev)
+app.secret_key = "troque_esta_chave_para_producao" 
 
 # Helpers
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def run_command(cmd_list):
-    """Roda um comando shell (lista) e lança exceção se falhar. Retorna (stdout, stderr)."""
     proc = subprocess.run(cmd_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if proc.returncode != 0:
         raise RuntimeError(f"Comando falhou: {' '.join(cmd_list)}\nSTDOUT: {proc.stdout}\nSTDERR: {proc.stderr}")
     return proc.stdout, proc.stderr
 
 def create_processing_lock(video_dir):
-    """Create a lock file to indicate video is being processed."""
     lock_file = video_dir / ".processing"
     lock_file.write_text("processing", encoding="utf-8")
 
 def remove_processing_lock(video_dir):
-    """Remove the processing lock file when video is ready."""
     lock_file = video_dir / ".processing"
     lock_file.unlink(missing_ok=True)
 
 def is_video_processing(video_dir):
-    """Check if video is still being processed."""
     return (video_dir / ".processing").exists()
 
 def is_video_ready(video_dir):
-    """Check if video processing is complete and ready to watch."""
     return (video_dir / "output.mpd").exists() and not is_video_processing(video_dir)
 
 def transcode_and_multiplex_dash(input_path: Path, dest_dir: Path):
@@ -60,7 +54,6 @@ def transcode_and_multiplex_dash(input_path: Path, dest_dir: Path):
     mpd   = dest_dir / "output.mpd"
     thumb = dest_dir / "thumbnail.jpg"
 
-    # Thumbnail (opcional)
     try:
         run_command([
             "ffmpeg", "-y",
@@ -85,7 +78,7 @@ def transcode_and_multiplex_dash(input_path: Path, dest_dir: Path):
         "ffmpeg", "-y", "-i", str(input_path),
         "-vf", "scale=854:480,setsar=1,setdar=16/9",
         "-c:v", "libx264", "-crf", "25", "-preset", "fast",
-        "-an",  # sem áudio
+        "-an",  
         str(v480_dash)
     ])
 
@@ -93,7 +86,7 @@ def transcode_and_multiplex_dash(input_path: Path, dest_dir: Path):
         "ffmpeg", "-y", "-i", str(input_path),
         "-vf", "scale=1280:720,setsar=1,setdar=16/9",
         "-c:v", "libx264", "-crf", "23", "-preset", "fast",
-        "-an",  # sem áudio
+        "-an", 
         str(v720_dash)
     ])
 
@@ -101,18 +94,16 @@ def transcode_and_multiplex_dash(input_path: Path, dest_dir: Path):
         "ffmpeg", "-y", "-i", str(input_path),
         "-vf", "scale=1920:1080,setsar=1,setdar=16/9",
         "-c:v", "libx264", "-crf", "21", "-preset", "fast",
-        "-an",  # sem áudio
+        "-an", 
         str(v1080_dash)
     ])
 
-    # Áudio estéreo separado para DASH
     run_command([
         "ffmpeg", "-y", "-i", str(input_path),
         "-vn", "-c:a", "aac", "-b:a", "128k",
         str(audio)
     ])
 
-    # Multiplexação DASH: 4 streams de vídeo + 1 stream de áudio
     run_command([
         "ffmpeg",
         "-i", str(v240_dash),
@@ -135,11 +126,11 @@ def transcode_and_multiplex_dash(input_path: Path, dest_dir: Path):
     v720_dash.unlink(missing_ok=True)
     v1080_dash.unlink(missing_ok=True)
 
-    # Metadados simples
+
     (dest_dir / "meta.txt").write_text("original_filename={}\nmpd={}\n".format(input_path.name, mpd.name), encoding="utf-8")
     return mpd
 
-# Rotas
+
 @app.route("/")
 def index():
     return redirect(url_for("list_videos"))
@@ -224,12 +215,10 @@ def watch(video_id):
         flash("Vídeo não encontrado", "danger")
         return redirect(url_for("list_videos"))
     
-    # Check if video is still processing
     if is_video_processing(video_dir):
         flash("Vídeo ainda está sendo processado. Aguarde alguns minutos.", "warning")
         return redirect(url_for("list_videos"))
     
-    # Check if video is ready
     if not is_video_ready(video_dir):
         flash("Vídeo não está disponível para reprodução.", "danger")
         return redirect(url_for("list_videos"))
@@ -253,17 +242,6 @@ def serve_video_file(video_id, filename):
     if not safe_dir.exists():
         return "Not found", 404
     return send_from_directory(safe_dir, filename)
-
-# API helper para checar status (opcional)
-@app.route("/api/video_status/<video_id>")
-def video_status(video_id):
-    d = VIDEOS_FOLDER / video_id
-    return jsonify({
-        "exists": d.exists(),
-        "is_processing": is_video_processing(d) if d.exists() else False,
-        "is_ready": is_video_ready(d) if d.exists() else False,
-        "files": [f.name for f in d.iterdir()] if d.exists() else []
-    })
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001, host='0.0.0.0')
