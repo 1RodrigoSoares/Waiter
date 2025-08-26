@@ -17,7 +17,7 @@ No processamento dos vídeos, foram adotados os codecs **H.264** (vídeo) e **AA
 ## 📁 Estrutura do projeto
 
 ```
-VidTube/
+Waiter/
 ├── app.py                 # Aplicação principal Flask
 ├── requirements.txt       # Dependências Python
 ├── README.md             # Este arquivo
@@ -69,7 +69,7 @@ brew install ffmpeg
 ### 1. Clonar o Repositório
 ```bash
 git clone https://github.com/1RodrigoSoares/Waiter.git
-cd VidTube
+cd Waiter
 ```
 
 ### 2. Criar Ambiente Virtual (Recomendado)
